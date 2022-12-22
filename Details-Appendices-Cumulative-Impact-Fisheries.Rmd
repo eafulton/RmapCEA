@@ -1,0 +1,335 @@
+---
+title: "Appendix-Details Cumulative Impact of Fisheries"
+output: pdf_document
+fig_caption: true
+date: "`r Sys.Date()`"
+---
+
+```{r setup,echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(fig.cap =  TRUE, warning = FALSE, message = FALSE)
+
+
+```
+
+Species and 
+
+```{r}
+
+
+require(sf)
+require(terra)
+require(tibble)
+require(dplyr)
+require(mgcv)
+require(RColorBrewer)
+require(ggplot2)
+```
+
+# Appendix 1: Species level PSA maps.
+
+Print out each species PSA map
+
+```{r AusCUM1, echo=FALSE,fig.width=10}
+
+
+australian.land<-read_sf("/Users/ful083/Work/Cumulative_Impacts_&_IEA_&_ERA/FRDC_cum_impacts_fisheries_project/Analysis_&_Workup/AFMA_cumulative_impacts_coding_skip/data/Australia- Fine-Scale-From-NOAA.shp")
+pres.rda<-readRDS("pressure_rda.rds")
+fishing.in.eez<-readRDS("fishing-in-eez.rds")
+fish.cum.imp<-readRDS("fish-cum-imp-psa.rds")
+era.PSA<-readRDS("era-PSA-scores.rds")
+attr_df<-readRDS("raw_productivity_attr_ERAs.rds")
+some.fishing.present<-rowSums(fishing.in.eez,na.rm=T)>0
+
+
+
+species.with.psa<-unique(era.PSA$CAAB_CODE)
+
+#ii<-37296001
+
+# Map
+for(ii in species.with.psa[1:1625]){
+ # pres[]<-NAflag(pres)
+  t3<-data.frame(x=pres.rda$x,y=pres.rda$y,PSA=NA)
+  t1<- which(era.PSA$CAAB_CODE==ii)
+  if(length(t1)>1){t2<-rowSums(fish.cum.imp[,t1],na.rm = TRUE)}else{t2<-fish.cum.imp[,t1]}
+  if(sum(t2,na.rm=TRUE)>0){
+    t3$PSA[some.fishing.present]<-t2*-1
+    
+    #pres[pres.rda$cell[some.fishing.present]]<-t2
+    sp.name<-attr_df$SCIENTIFIC_NAME[attr_df$CAAB_CODE==ii][1]
+    t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=PSA)) +
+      theme_void()+ theme(plot.title.position = "plot",legend.position = c(.85, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5) )+
+    scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "PSA Impact") +
+      geom_sf(data=australian.land,fill="grey") + 
+      labs(title = sp.name)  + xlim(110,165)
+    
+    plot(t4)
+    cat("\n\n")
+    ggsave(paste("./Species-level-PSA/",sp.name,"_SP",ii,".png",sep=""),width=4,height=4,dpi=600)
+
+  }
+  
+}
+
+# Frequency historgram
+for(ii in species.with.psa[1:1625]){
+ # pres[]<-NAflag(pres)
+  t3<-data.frame(x=pres.rda$x,y=pres.rda$y,PSA=NA)
+  t1<- which(era.PSA$CAAB_CODE==ii)
+  if(length(t1)>1){t2<-rowSums(fish.cum.imp[,t1],na.rm = TRUE)}else{t2<-fish.cum.imp[,t1]}
+  if(sum(t2,na.rm=TRUE)>0){
+    t3$PSA[some.fishing.present]<-t2
+    
+    #pres[pres.rda$cell[some.fishing.present]]<-t2
+    sp.name<-attr_df$SCIENTIFIC_NAME[attr_df$CAAB_CODE==ii][1]
+
+    t4<- ggplot(data = t3, aes(x = PSA)) + 
+    geom_histogram(bins = 40, fill = "dodgerblue4", color = "black")  +
+    labs(x="Cumulative Effect Score", y = "Frequency", title = sp.name) +
+    theme_bw() +
+    theme(axis.text=element_text(size=12,face="bold"),
+          axis.title=element_text(size=14,face="bold")) 
+
+      
+      
+    plot(t4)
+    
+    ggsave(paste("./Species-level-PSA-histograms/",sp.name,"_SP",ii,"_Histogram.png",sep=""),width=4,height=4,dpi=600)
+
+  }
+  
+}
+
+
+# List species and max PSA
+this_nrow <- length(species.with.psa)
+MaxScore <- data.frame(matrix(ncol = 4, nrow = this_nrow))
+colnames(MaxScore)[1:4] <- c("CAAB_code","Name","MaxCumScore","MeanCumScore")
+
+nsp <- 1
+
+for(ii in species.with.psa[1:1625]){
+ # pres[]<-NAflag(pres)
+  t3<-data.frame(x=pres.rda$x,y=pres.rda$y,PSA=NA)
+  t1<- which(era.PSA$CAAB_CODE==ii)
+  if(length(t1)>1){t2<-rowSums(fish.cum.imp[,t1],na.rm = TRUE)}else{t2<-fish.cum.imp[,t1]}
+  if(sum(t2,na.rm=TRUE)>0){
+    t3$PSA[some.fishing.present]<-t2
+    
+    #pres[pres.rda$cell[some.fishing.present]]<-t2
+    sp.name<-attr_df$SCIENTIFIC_NAME[attr_df$CAAB_CODE==ii][1]
+    
+    # Store values
+    MaxScore$CAAB_code[nsp] <- ii
+    MaxScore$Name[nsp] <- sp.name
+    MaxScore$MaxCumScore[nsp] <- max(t3$PSA,na.rm=TRUE)
+    MaxScore$MeanCumScore[nsp] <- mean(t3$PSA,na.rm=TRUE)
+    
+    nsp <- nsp + 1
+  
+  }
+  
+}
+
+write.csv(MaxScore, file = "List_MaxCumScore.csv", row.names = FALSE)
+
+```
+
+```{r AusCUM2, echo=FALSE,fig.width=10}
+
+
+species.with.psa<-unique(era.PSA$CAAB_CODE)
+
+#ii<-37296001
+
+for(ii in species.with.psa[801:900]){ #length(species.with.psa)]){
+ # pres[]<-NAflag(pres)
+  t3<-data.frame(x=pres.rda$x,y=pres.rda$y,PSA=NA)
+  t1<- which(era.PSA$CAAB_CODE==ii)
+  if(length(t1)>1){t2<-rowSums(fish.cum.imp[,t1],na.rm = TRUE)}else{t2<-fish.cum.imp[,t1]}
+  if(sum(t2,na.rm=TRUE)>0){
+    t3$PSA[some.fishing.present]<-t2*-1
+    
+    #pres[pres.rda$cell[some.fishing.present]]<-t2
+    sp.name<-attr_df$SCIENTIFIC_NAME[attr_df$CAAB_CODE==ii][1]
+    t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=PSA)) +
+      theme_void()+ theme(plot.title.position = "plot",legend.position = c(.85, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5) )+
+    scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "PSA Impact") +
+      geom_sf(data=australian.land,fill="grey") + labs(title = sp.name)  + xlim(110,165)
+    
+    plot(t4)
+    cat("\n\n")
+    #ggsave(paste("./Species-level-PSA/SP",ii,"_",sp.name,".png",sep=""),width=4,height=4,dpi=600)
+
+  }
+  
+}
+
+
+
+```
+
+
+# Appendix 2: Functional group maps from EWE model
+
+```{r EWEwSE, echo=FALSE,fig.cap='Total Cumulative Impact from EWE analysis with 95% confidence intervals.',fig.width=6,dpi=48,results = 'asis'}
+
+fishing.in.eez.ewe<-readRDS("fishing_in_eez_ewe.rds")
+ecosystem.cum.imp<-readRDS("ecosystem_cumulative_impact_ewe.rds")
+ecosystem.cum.imp.se<-readRDS("ecosystem_cumulative_impact_se_ewe.rds")
+some.fishing.present<-rowSums(fishing.in.eez.ewe[,1:11],na.rm=T)>0
+functional.group.names<-readRDS("functional-group-names.rds")
+
+
+for(i in 1:57){ ## 1:60
+  ## for each species.
+  ## use se.fit to calculate CI for gaussian
+  
+  t3<-data.frame(x=pres.rda$x,y=pres.rda$y,upper=NA,mean=NA,lower=NA)
+  
+  t1<-ecosystem.cum.imp[,,i]
+  t2<-ecosystem.cum.imp.se[,,i]
+  
+  t1.1<-t1 - t2*1.96
+  t2.1<- rowSums(t1.1,na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+  
+  t3$lower[some.fishing.present]<-t2.1
+  
+  ## mean
+  t1.1<-t1
+  t2.1<- rowSums(t1.1,na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+  
+  t3$mean[some.fishing.present]<-t2.1
+  
+  ## UPPER
+  
+  t1.1<-t1 + t2*1.96
+
+  t2.1<- rowSums(t1.1,na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+  
+  t3$upper[some.fishing.present]<-t2.1
+  
+  t3<-t3[t3$x>140 & t3$x<160,]
+  t3<-t3[t3$y> -45 & t3$y< -33,]
+  
+  t3<- t3%>%tidyr::pivot_longer(c(-x,-y),names_to="interval",values_to="impact")
+  t3$invimpact = t3$impact*-1
+
+  # This was impact but inverting it so same as for species level assessments
+  t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=invimpact)) + facet_wrap(vars(interval),labeller=labeller(interval=c(lower="Lower CI",mean="Mean",upper="Upper CI"))  ) +
+    theme_void()+ theme(plot.title.position = "plot",legend.position = c(.95, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5)) +
+    scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
+    geom_sf(data=australian.land,fill="grey") +
+    xlim(140,160)+ylim(-45,-33) + labs(title = functional.group.names[i] )
+  
+  plot(t4)
+  cat("\n\n")
+  
+  #ggsave(paste("./Function-group-EWE/",names(ecosystem.fishery.response[[1]])[i],"_EWE.png",sep=""),width=8,height=4,dpi=600)
+  ggsave(paste("./Function-group-EWE/",functional.group.names[i],"_EWE.png",sep=""),width=8,height=4,dpi=600)
+  
+ # pres[]<-NAflag(pres)
+#  pres[pres.rda$cell[some.fishing.present]]<-rowSums(t1,na.rm=T)
+ # plot(pres,main=names(ecosystem.fishery.response[[1]])[i],xlim=c(140,160),ylim=c(-45,-33),col=col.ramp.blue.red)
+#  plot(autralian.land$australian.land,add=T,col="grey",legend=FALSE)
+  
+}
+
+######## Total species
+t3<-data.frame(x=pres.rda$x,y=pres.rda$y,upper=NA,mean=NA,lower=NA)
+
+
+## lower CI bound
+t1<-ecosystem.cum.imp - ecosystem.cum.imp.se*1.96
+t1<-apply(t1,c(1,3),sum,na.rm=TRUE)
+t2<- rowSums(t1[,1:57],na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+
+t3$lower[some.fishing.present]<-t2
+
+## mean
+t1<-apply(ecosystem.cum.imp,c(1,3),sum,na.rm=TRUE)
+t2<- rowSums(t1[,1:57],na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+
+t3$mean[some.fishing.present]<-t2
+
+## UPPER
+
+t1<-ecosystem.cum.imp + ecosystem.cum.imp.se*1.96
+t1<-apply(t1,c(1,3),sum,na.rm=TRUE)
+t2<- rowSums(t1[,1:57],na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+
+t3$upper[some.fishing.present]<-t2
+
+t3<- t3%>%tidyr::pivot_longer(c(-x,-y),names_to="interval",values_to="impact")
+t3$invimpact = t3$impact*-1
+
+#png(".//Total-Summed-Response-SE-EWE.png",width=3200,height=2400,res=600)
+#pres[]<-NAflag(pres)
+#pres[pres.rda$cell[some.fishing.present]]<-t2
+#plot(pres,main="Total Summed",xlim=c(140,160),ylim=c(-45,-33),col=rev(col.ramp.blue.red))  ##c(0.01,0.01),s=c(0,1),v=c(0.5,1)))
+#plot(autralian.land$australian.land,add=T,col="grey",legend=FALSE)
+#dev.off()
+
+t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=invimpact)) + facet_wrap(vars(interval),labeller=labeller(interval=c(lower="Lower CI",mean="Mean",upper="Upper CI")))   +
+  theme_void()+ theme(plot.title.position = "plot",legend.position = c(.95, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5)) + scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
+  geom_sf(data=australian.land,fill="grey") +xlim(140,160)+ylim(-45,-33)
+
+plot(t4)
+ggsave("SE_Total_impact_EWE.png",width=8,height=4,dpi=600)
+
+
+t4<-ggplot(data=subset(t3,t3$interval=="mean"))+geom_raster(aes(x=x,y=y,fill=invimpact))  +
+  theme_void()+ theme(plot.title.position = "plot",legend.position = c(.85, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5) ) + scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
+  geom_sf(data=australian.land,fill="grey") +xlim(140,160)+ylim(-45,-33)
+
+plot(t4)
+ggsave("SE_Total_impact_EWE_mean.png",width=3,height=4,dpi=600)
+
+
+#############
+
+
+ThisScore <- data.frame(matrix(ncol = 4, nrow = 57))
+colnames(ThisScore)[1:4] <- c("Name","MaxEwEScore","MeanEwEScore","MinEwEScore")
+
+for(i in 1:57){ ## 1:60
+  t3<-data.frame(x=pres.rda$x,y=pres.rda$y,upper=NA,mean=NA,lower=NA)
+  
+  t1<-ecosystem.cum.imp[,,i]
+  t2<-ecosystem.cum.imp.se[,,i]
+  
+  t1.1<-t1 - t2*1.96
+  t2.1<- rowSums(t1.1,na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+  
+  t3$lower[some.fishing.present]<-t2.1
+  
+  ## mean
+  t1.1<-t1
+  t2.1<- rowSums(t1.1,na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+  
+  t3$mean[some.fishing.present]<-t2.1
+  
+  ## UPPER
+  
+  t1.1<-t1 + t2*1.96
+
+  t2.1<- rowSums(t1.1,na.rm = TRUE)##apply(t1,1,sum,na.rm=TRUE)
+  
+  t3$upper[some.fishing.present]<-t2.1
+  
+  t3<-t3[t3$x>140 & t3$x<160,]
+  t3<-t3[t3$y> -45 & t3$y< -33,]
+  
+  t3<- t3%>%tidyr::pivot_longer(c(-x,-y),names_to="interval",values_to="impact")
+
+  ThisScore$Name[i] <- functional.group.names[i]
+  ThisScore$MaxEwEScore[i] <- max(t3$impact,na.rm=TRUE)
+  ThisScore$MinEwEScore[i] <- mean(t3$impact,na.rm=TRUE)
+  ThisScore$MeanEwEScore[i] <- min(t3$impact,na.rm=TRUE)
+}
+
+write.csv(ThisScore, file = "List_EwEScore.csv", row.names = FALSE)
+
+```
+
