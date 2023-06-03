@@ -31,7 +31,7 @@ require(ggplot2)
 Print out each species PSA map
 
 ```{r AusCUM1, echo=FALSE,fig.width=10}
-
+setwd("/Users/ful083/Work/Cumulative_Impacts_&_IEA_&_ERA/FRDC_cum_impacts_fisheries_project/Analysis_&_Workup/AFMA_cumulative_impacts_coding_skip")
 
 australian.land<-read_sf("/Users/ful083/Work/Cumulative_Impacts_&_IEA_&_ERA/FRDC_cum_impacts_fisheries_project/Analysis_&_Workup/AFMA_cumulative_impacts_coding_skip/data/Australia- Fine-Scale-From-NOAA.shp")
 pres.rda<-readRDS("pressure_rda.rds")
@@ -41,6 +41,7 @@ era.PSA<-readRDS("era-PSA-scores.rds")
 attr_df<-readRDS("raw_productivity_attr_ERAs.rds")
 some.fishing.present<-rowSums(fishing.in.eez,na.rm=T)>0
 
+fish.cum.res<-readRDS("fish-cum-imp-psa.residual.rds")
 
 
 species.with.psa<-unique(era.PSA$CAAB_CODE)
@@ -60,13 +61,16 @@ for(ii in species.with.psa[1:1625]){
     sp.name<-attr_df$SCIENTIFIC_NAME[attr_df$CAAB_CODE==ii][1]
     t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=PSA)) +
       theme_void()+ theme(plot.title.position = "plot",legend.position = c(.85, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5) )+
-    scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "PSA Impact") +
-      geom_sf(data=australian.land,fill="grey") + 
+    #scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "PSA Impact") +
+      scale_fill_distiller( palette = "PuBu",na.value = "white", name = "PSA Impact") +
+      #geom_sf(data=australian.land,fill="grey") + 
+      geom_sf(data=australian.land,fill="#F7CE86",size=0.1) + 
       labs(title = sp.name)  + xlim(110,165)
     
     plot(t4)
-    cat("\n\n")
-    ggsave(paste("./Species-level-PSA/",sp.name,"_SP",ii,".png",sep=""),width=4,height=4,dpi=600)
+    #cat("\n\n")
+    #ggsave(paste("./Species-level-PSA/",sp.name,"_SP",ii,".png",sep=""),width=4,height=4,dpi=600)
+    ggsave(paste("./Spatial_outputs/Species-level-PSA/Max-potential/",sp.name,"max-potential-CEA.png",sep=""),width=4,height=4,dpi=600)
 
   }
   
@@ -79,7 +83,8 @@ for(ii in species.with.psa[1:1625]){
   t1<- which(era.PSA$CAAB_CODE==ii)
   if(length(t1)>1){t2<-rowSums(fish.cum.imp[,t1],na.rm = TRUE)}else{t2<-fish.cum.imp[,t1]}
   if(sum(t2,na.rm=TRUE)>0){
-    t3$PSA[some.fishing.present]<-t2
+    #t3$PSA[some.fishing.present]<-t2
+    t3$PSA[some.fishing.present]<-t2*-1
     
     #pres[pres.rda$cell[some.fishing.present]]<-t2
     sp.name<-attr_df$SCIENTIFIC_NAME[attr_df$CAAB_CODE==ii][1]
@@ -95,7 +100,7 @@ for(ii in species.with.psa[1:1625]){
       
     plot(t4)
     
-    ggsave(paste("./Species-level-PSA-histograms/",sp.name,"_SP",ii,"_Histogram.png",sep=""),width=4,height=4,dpi=600)
+    ggsave(paste("./Spatial_outputs/Species-level-PSA-histograms/",sp.name,"_SP",ii,"_Histogram.png",sep=""),width=4,height=4,dpi=600)
 
   }
   
@@ -138,6 +143,8 @@ write.csv(MaxScore, file = "List_MaxCumScore.csv", row.names = FALSE)
 
 ```{r AusCUM2, echo=FALSE,fig.width=10}
 
+# IF want to invert and have +ve as bad rather than -ve as above
+
 
 species.with.psa<-unique(era.PSA$CAAB_CODE)
 
@@ -155,12 +162,16 @@ for(ii in species.with.psa[801:900]){ #length(species.with.psa)]){
     sp.name<-attr_df$SCIENTIFIC_NAME[attr_df$CAAB_CODE==ii][1]
     t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=PSA)) +
       theme_void()+ theme(plot.title.position = "plot",legend.position = c(.85, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5) )+
-    scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "PSA Impact") +
-      geom_sf(data=australian.land,fill="grey") + labs(title = sp.name)  + xlim(110,165)
+      #scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "PSA Impact") +
+      scale_fill_distiller( palette = "PuBu",na.value = "white", name = "PSA Impact") +
+      #geom_sf(data=australian.land,fill="grey") + 
+      geom_sf(data=australian.land,fill="#F7CE86",size=0.1) + 
+      labs(title = sp.name)  + xlim(110,165)
     
     plot(t4)
     cat("\n\n")
     #ggsave(paste("./Species-level-PSA/SP",ii,"_",sp.name,".png",sep=""),width=4,height=4,dpi=600)
+    ggsave(paste("/Spatial_outputs/Species-level-PSA/SP",ii,"_",sp.name,".png",sep=""),width=4,height=4,dpi=600)
 
   }
   
@@ -214,27 +225,35 @@ for(i in 1:57){ ## 1:60
   t3<-t3[t3$y> -45 & t3$y< -33,]
   
   t3<- t3%>%tidyr::pivot_longer(c(-x,-y),names_to="interval",values_to="impact")
-  t3$invimpact = t3$impact*-1
+  t3$invimpact = t3$impact*-1.0
 
   # This was impact but inverting it so same as for species level assessments
-  t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=invimpact)) + facet_wrap(vars(interval),labeller=labeller(interval=c(lower="Lower CI",mean="Mean",upper="Upper CI"))  ) +
+  #t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=invimpact)) +
+  
+  # If -ve is bad use this otherwise use line abvoe
+  t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=impact)) + facet_wrap(vars(interval),labeller=labeller(interval=c(lower="Lower CI",mean="Mean",upper="Upper CI"))  ) +
     theme_void()+ theme(plot.title.position = "plot",legend.position = c(.95, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5)) +
-    scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
-    geom_sf(data=australian.land,fill="grey") +
+      #scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
+      #scale_fill_distiller( palette = "PuBu",na.value = "white", name = "Total Impact") +
+    
+    scale_fill_gradient2(low = "#143855", mid = "#FAFAD9", high = "#525252", midpoint = 0, na.value = "white", name = "Total Impact", guide = "colourbar", aesthetics = "fill") +
+    geom_sf(data=australian.land,fill="#F7CE86",size=0.1) + 
     xlim(140,160)+ylim(-45,-33) + labs(title = functional.group.names[i] )
   
   plot(t4)
-  cat("\n\n")
-  
-  #ggsave(paste("./Function-group-EWE/",names(ecosystem.fishery.response[[1]])[i],"_EWE.png",sep=""),width=8,height=4,dpi=600)
-  ggsave(paste("./Function-group-EWE/",functional.group.names[i],"_EWE.png",sep=""),width=8,height=4,dpi=600)
-  
+
+ #ggsave(paste("./Function-group-EWE/",names(ecosystem.fishery.response[[1]])[i],"_EWE.png",sep=""),width=8,height=4,dpi=600)
+  filenameEWE <- paste("Spatial_outputs/GAM_Analysis_SE-Function-group-EWE/Final-GAM-EWE/",functional.group.names[i],"_EWE.png",sep="")
+  ggsave(filenameEWE,width=8,height=4,dpi=600)
+
+    
  # pres[]<-NAflag(pres)
 #  pres[pres.rda$cell[some.fishing.present]]<-rowSums(t1,na.rm=T)
  # plot(pres,main=names(ecosystem.fishery.response[[1]])[i],xlim=c(140,160),ylim=c(-45,-33),col=col.ramp.blue.red)
 #  plot(autralian.land$australian.land,add=T,col="grey",legend=FALSE)
   
 }
+
 
 ######## Total species
 t3<-data.frame(x=pres.rda$x,y=pres.rda$y,upper=NA,mean=NA,lower=NA)
@@ -271,20 +290,31 @@ t3$invimpact = t3$impact*-1
 #plot(autralian.land$australian.land,add=T,col="grey",legend=FALSE)
 #dev.off()
 
-t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=invimpact)) + facet_wrap(vars(interval),labeller=labeller(interval=c(lower="Lower CI",mean="Mean",upper="Upper CI")))   +
-  theme_void()+ theme(plot.title.position = "plot",legend.position = c(.95, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5)) + scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
-  geom_sf(data=australian.land,fill="grey") +xlim(140,160)+ylim(-45,-33)
+# Use this if +ve is bad
+#t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=invimpact)) + facet_wrap(vars(interval),labeller=labeller(interval=c(lower="Lower CI",mean="Mean",upper="Upper CI")))   +
+
+t4<-ggplot(data=t3)+geom_raster(aes(x=x,y=y,fill=impact)) + facet_wrap(vars(interval),labeller=labeller(interval=c(lower="Lower CI",mean="Mean",upper="Upper CI")))   +
+  theme_void()+ theme(plot.title.position = "plot",legend.position = c(.95, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5)) + #scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
+  #scale_fill_distiller( palette = "PuBu",na.value = "white", name = "Total Impact") +
+  scale_fill_gradient2(low = "#143855", mid = "#FAFAD9", high = "#525252", midpoint = 0, na.value = "white", name = "Total Impact", guide = "colourbar", aesthetics = "fill") +
+  #geom_sf(data=australian.land,fill="grey") +
+  geom_sf(data=australian.land,fill="#F7CE86",size=0.1) + 
+  xlim(140,160)+ylim(-45,-33)
 
 plot(t4)
-ggsave("SE_Total_impact_EWE.png",width=8,height=4,dpi=600)
+ggsave("./Spatial_outputs/GAM_Analysis_SE-Function-group-EWE/SE_Total_impact_EWE.png",width=8,height=4,dpi=600)
 
 
-t4<-ggplot(data=subset(t3,t3$interval=="mean"))+geom_raster(aes(x=x,y=y,fill=invimpact))  +
-  theme_void()+ theme(plot.title.position = "plot",legend.position = c(.85, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5) ) + scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
-  geom_sf(data=australian.land,fill="grey") +xlim(140,160)+ylim(-45,-33)
+#t4<-ggplot(data=subset(t3,t3$interval=="mean"))+geom_raster(aes(x=x,y=y,fill=invimpact))  +
+t4<-ggplot(data=subset(t3,t3$interval=="mean"))+geom_raster(aes(x=x,y=y,fill=impact))  +
+  theme_void()+ theme(plot.title.position = "plot",legend.position = c(.85, .4), legend.key.size = unit(0.3,'cm'),legend.title = element_text(size=5), legend.text = element_text(size=5) ) + #scale_fill_distiller( palette = "YlOrRd",na.value = "white", name = "Total Impact") +
+  scale_fill_distiller( palette = "PuBu",na.value = "white", name = "Total Impact") +
+  #geom_sf(data=australian.land,fill="grey") +
+  geom_sf(data=australian.land,fill="#F7CE86",size=0.1) + 
+  xlim(140,160)+ylim(-45,-33)
 
 plot(t4)
-ggsave("SE_Total_impact_EWE_mean.png",width=3,height=4,dpi=600)
+ggsave("/Spatial_outputs/GAM_Analysis_SE-Function-group-EWE/Final-GAM-EWE/SE_Total_impact_EWE_mean.png",width=3,height=4,dpi=600)
 
 
 #############
